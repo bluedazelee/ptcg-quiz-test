@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>線上互動測驗系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 隱藏捲軸但保留滾動功能 (針對特定區塊) */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 自訂選項的核取/單選按鈕樣式 */
+        .option-label {
+            transition: all 0.2s ease;
+        }
+        .option-input:checked + .option-content {
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+            <h1 class="text-xl font-bold text-blue-600 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                線上測驗系統
+            </h1>
+            <div id="progress-indicator" class="text-sm font-medium text-slate-500 hidden">
+                進度: <span id="current-q-num">1</span> / <span id="total-q-num">10</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-grow flex flex-col items-center p-4 sm:p-6 w-full max-w-3xl mx-auto">
+        
+        <!-- 狀態: 載入中 -->
+        <div id="view-loading" class="w-full bg-white rounded-2xl shadow-sm p-8 text-center flex flex-col items-center justify-center mt-10">
+            <svg class="animate-spin h-10 w-10 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h2 class="text-lg font-semibold text-slate-700">正在載入題庫資料...</h2>
+            <p class="text-slate-500 text-sm mt-2">請稍候，系統正在從 Google 試算表獲取資料</p>
+        </div>
+
+        <!-- 狀態: 錯誤提示 -->
+        <div id="view-error" class="hidden w-full bg-red-50 border border-red-200 rounded-2xl shadow-sm p-8 text-center mt-10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h2 class="text-lg font-semibold text-red-700 mb-2">資料載入失敗</h2>
+            <p id="error-message" class="text-red-600 text-sm">無法讀取題庫，請確認試算表已設定為「發布到網路」。</p>
+            <button onclick="initApp()" class="mt-6 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">重試</button>
+        </div>
+
+        <!-- 狀態: 開始畫面 -->
+        <div id="view-start" class="hidden w-full bg-white rounded-2xl shadow-sm p-8 text-center mt-10 fade-in">
+            <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477-4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">題庫載入完成！</h2>
+            <p class="text-slate-500 mb-8">共包含 <span id="start-total-q" class="font-bold text-blue-600">0</span> 道題目。<br>系統包含單選與多選題，準備好就可以開始了。</p>
+            <button onclick="startQuiz()" class="w-full sm:w-auto px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition transform hover:scale-105 active:scale-95">
+                開始測驗
+            </button>
+        </div>
+
+        <!-- 狀態: 測驗進行中 -->
+        <div id="view-quiz" class="hidden w-full max-w-2xl mt-4 fade-in">
+            <!-- 進度條 -->
+            <div class="w-full bg-slate-200 rounded-full h-2 mb-6 overflow-hidden">
+                <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-6 sm:p-8">
+                    <!-- 題目類型標籤 -->
+                    <div class="mb-4">
+                        <span id="q-type-badge" class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">單選題</span>
+                    </div>
+
+                    <!-- 題目內容 -->
+                    <h3 id="q-title" class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 leading-relaxed">
+                        題目內容載入中...
+                    </h3>
+
+                    <!-- 卡圖 (若有) -->
+                    <div id="q-image-container" class="mb-6 hidden">
+                        <img id="q-image" src="" alt="題目圖片" class="max-w-full h-auto rounded-xl shadow-sm border border-slate-200" onerror="this.parentElement.classList.add('hidden');">
+                    </div>
+
+                    <!-- 選項區塊 -->
+                    <div id="q-options" class="flex flex-col gap-3">
+                        <!-- 選項會透過 JS 動態產生 -->
+                    </div>
+                </div>
+
+                <!-- 底部按鈕 -->
+                <div class="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-between items-center">
+                    <button onclick="prevQuestion()" id="btn-prev" class="px-5 py-2.5 text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        上一題
+                    </button>
+                    <button onclick="nextQuestion()" id="btn-next" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        下一題
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 狀態: 測驗結果與回顧 -->
+        <div id="view-result" class="hidden w-full fade-in pb-12">
+            <!-- 總分卡片 -->
+            <div class="bg-white rounded-2xl shadow-sm p-8 text-center mb-8 mt-4">
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">測驗完成！</h2>
+                <p class="text-slate-500 mb-6">以下是您的測驗結果與詳細回顧</p>
+                
+                <div class="inline-flex flex-col items-center justify-center w-40 h-40 rounded-full border-8 border-blue-100 bg-blue-50 mb-4 relative">
+                    <span class="text-4xl font-extrabold text-blue-600" id="result-score">0</span>
+                    <span class="text-sm text-blue-400 font-medium absolute bottom-6">總分 100</span>
+                </div>
+                
+                <div class="flex justify-center gap-6 mt-4">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-500" id="result-correct">0</div>
+                        <div class="text-xs text-slate-500 uppercase tracking-wider">答對題數</div>
+                    </div>
+                    <div class="w-px bg-slate-200"></div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-red-500" id="result-wrong">0</div>
+                        <div class="text-xs text-slate-500 uppercase tracking-wider">答錯題數</div>
+                    </div>
+                </div>
+
+                <button onclick="location.reload()" class="mt-8 px-8 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-md transition">
+                    重新測驗
+                </button>
+            </div>
+
+            <!-- 詳解回顧清單 -->
+            <h3 class="text-xl font-bold text-slate-800 mb-4 pl-2 border-l-4 border-blue-500">測驗回顧與詳解</h3>
+            <div id="review-container" class="flex flex-col gap-6">
+                <!-- 回顧卡片會透過 JS 動態產生 -->
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // 設定區
+        const rawUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQJct_Ip13Rzm3V9uqEywbABfRTpfkM_vvSb9DPOo-xKEZV59DkHWTQIGSEtTwI0_I_7IIF0IRDGE9U/pubhtml";
+        // 將 pubhtml 轉換為 CSV 輸出網址
+        const CSV_URL = rawUrl.replace(/\/pubhtml\/?$/, '/pub?output=csv');
+
+        // 應用程式狀態
+        const state = {
+            questions: [],
+            currentIdx: 0,
+            userAnswers: {} // key: question index, value: array of selected option texts
+        };
+
+        // DOM 元素快取
+        const views = {
+            loading: document.getElementById('view-loading'),
+            error: document.getElementById('view-error'),
+            start: document.getElementById('view-start'),
+            quiz: document.getElementById('view-quiz'),
+            result: document.getElementById('view-result')
+        };
+
+        // --- 核心邏輯：初始化與資料獲取 ---
+
+        async function initApp() {
+            showView('loading');
+            try {
+                const response = await fetch(CSV_URL);
+                if (!response.ok) throw new Error('網路回應錯誤');
+                const csvText = await response.text();
+                parseData(csvText);
+            } catch (error) {
+                console.error("資料獲取失敗:", error);
+                document.getElementById('error-message').textContent = "無法讀取題庫，請確認 Google 試算表已發布為公開 (CORS 或發布設定)。\n錯誤細節: " + error.message;
+                showView('error');
+            }
+        }
+
+        function showView(viewName) {
+            Object.values(views).forEach(v => v.classList.add('hidden'));
+            views[viewName].classList.remove('hidden');
+        }
+
+        // --- 陣列洗牌函式 (Fisher-Yates Shuffle) ---
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // --- CSV 解析與資料轉換 ---
+
+        function parseCSV(str) {
+            const arr = [];
+            let quote = false;
+            let row = 0, col = 0;
+            for (let c = 0; c < str.length; c++) {
+                let cc = str[c], nc = str[c+1];
+                arr[row] = arr[row] || [];
+                arr[row][col] = arr[row][col] || '';
+                if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
+                if (cc == '"') { quote = !quote; continue; }
+                if (cc == ',' && !quote) { ++col; continue; }
+                if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
+                if (cc == '\n' && !quote) { ++row; col = 0; continue; }
+                if (cc == '\r' && !quote) { ++row; col = 0; continue; }
+                arr[row][col] += cc;
+            }
+            return arr;
+        }
+
+        function parseData(csvText) {
+            const rawData = parseCSV(csvText);
+            if (rawData.length < 2) {
+                throw new Error("試算表內無有效資料列");
+            }
+
+            const headers = rawData[0].map(h => h.trim().toLowerCase());
+            
+            // 自動偵測欄位對應
+            const colMap = { options: [] };
+            headers.forEach((h, idx) => {
+                if (h.includes('題') || h.includes('問題') || h === 'question') colMap.title = idx;
+                else if (h.includes('圖') || h.includes('卡圖') || h === 'image') colMap.image = idx;
+                else if (h.includes('答案') || h === 'answer') colMap.answer = idx;
+                else if (h.includes('解') || h.includes('詳解') || h === 'explanation') colMap.explanation = idx;
+                else if (h.includes('選') || h.includes('option')) colMap.options.push(idx);
+            });
+
+            // 如果找不到特定標題，回退到預設索引機制 (根據使用者的 prompt)
+            if (colMap.title === undefined) colMap.title = 0;
+            if (colMap.image === undefined) colMap.image = 1;
+            if (colMap.options.length === 0) colMap.options = [2, 3];
+            if (colMap.answer === undefined) colMap.answer = 4;
+            if (colMap.explanation === undefined) colMap.explanation = 5;
+
+            state.questions = [];
+
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (!row || !row[colMap.title] || row[colMap.title].trim() === "") continue; // 跳過空行
+
+                const title = row[colMap.title].trim();
+                const image = row[colMap.image] ? row[colMap.image].trim() : "";
+                const explanation = row[colMap.explanation] ? row[colMap.explanation].trim() : "無詳解";
+                
+                // 處理選項
+                let options = [];
+                colMap.options.forEach(idx => {
+                    if (row[idx] && row[idx].trim() !== "") {
+                        options.push(row[idx].trim());
+                    }
+                });
+
+                // 處理答案
+                let rawAnswer = row[colMap.answer] ? row[colMap.answer].toString().trim() : "";
+                
+                // 判斷多選：如果有逗號或頓號
+                let correctAnswers = rawAnswer.split(/[,\u3001]/).map(s => s.trim()).filter(s => s !== "");
+                let isMultipleChoice = correctAnswers.length > 1;
+
+                // 為了支援 CSV 中答案填寫 "1", "2" 的情況，將數字對應回選項文字
+                correctAnswers = correctAnswers.map(ans => {
+                    if (/^\d+$/.test(ans)) {
+                        let idx = parseInt(ans) - 1;
+                        if (idx >= 0 && idx < options.length) {
+                            return options[idx];
+                        }
+                    }
+                    return ans;
+                });
+
+                state.questions.push({
+                    id: i,
+                    originalId: i, // 保留原始題號以便追蹤（非必要，但有助於除錯）
+                    title,
+                    image,
+                    options,
+                    correctAnswers,
+                    isMultipleChoice,
+                    explanation
+                });
+            }
+
+            if (state.questions.length === 0) {
+                throw new Error("找不到有效的題目，請檢查試算表格式。");
+            }
+
+            // 【新增】：將題目陣列隨機打亂
+            shuffleArray(state.questions);
+
+            document.getElementById('start-total-q').textContent = state.questions.length;
+            showView('start');
+        }
+
+        // --- 測驗流程控制 ---
+
+        function startQuiz() {
+            state.currentIdx = 0;
+            state.userAnswers = {};
+            document.getElementById('progress-indicator').classList.remove('hidden');
+            document.getElementById('total-q-num').textContent = state.questions.length;
+            showView('quiz');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = state.questions[state.currentIdx];
+            
+            // 更新進度與狀態
+            document.getElementById('current-q-num').textContent = state.currentIdx + 1;
+            const progressPercent = ((state.currentIdx) / state.questions.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+
+            // 標題與類型
+            document.getElementById('q-title').textContent = q.title;
+            const badge = document.getElementById('q-type-badge');
+            badge.textContent = q.isMultipleChoice ? '多選題' : '單選題';
+            badge.className = q.isMultipleChoice 
+                ? 'inline-block px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700'
+                : 'inline-block px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700';
+
+            // 圖片
+            const imgContainer = document.getElementById('q-image-container');
+            const imgEl = document.getElementById('q-image');
+            if (q.image) {
+                imgEl.src = q.image;
+                imgContainer.classList.remove('hidden');
+            } else {
+                imgContainer.classList.add('hidden');
+            }
+
+            // 產生選項
+            const optionsContainer = document.getElementById('q-options');
+            optionsContainer.innerHTML = '';
+            
+            const savedAnswers = state.userAnswers[state.currentIdx] || [];
+
+            q.options.forEach((optText, index) => {
+                const isChecked = savedAnswers.includes(optText);
+                const inputType = q.isMultipleChoice ? 'checkbox' : 'radio';
+                const inputName = `q_option_${state.currentIdx}`;
+                const inputId = `opt_${state.currentIdx}_${index}`;
+
+                const label = document.createElement('label');
+                label.className = "option-label relative cursor-pointer block";
+                
+                label.innerHTML = `
+                    <input type="${inputType}" name="${inputName}" value="${optText.replace(/"/g, '&quot;')}" id="${inputId}" class="option-input peer sr-only" ${isChecked ? 'checked' : ''} onchange="saveAnswer()">
+                    <div class="option-content w-full p-4 rounded-xl border-2 border-slate-200 bg-white hover:bg-slate-50 flex items-center gap-3 transition-colors peer-focus:ring-2 peer-focus:ring-blue-500">
+                        <div class="flex-shrink-0 w-6 h-6 rounded-${q.isMultipleChoice ? 'md' : 'full'} border-2 border-slate-300 peer-checked:bg-blue-500 peer-checked:border-blue-500 flex items-center justify-center">
+                            ${q.isMultipleChoice 
+                                ? `<svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>` 
+                                : `<div class="w-2.5 h-2.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"></div>`
+                            }
+                        </div>
+                        <span class="text-slate-700 font-medium text-lg leading-snug">${optText}</span>
+                    </div>
+                `;
+                
+                // 為自訂樣式補上聯動邏輯：利用 CSS peer class (Tailwind 內建)
+                const customCheckbox = label.querySelector('.flex-shrink-0');
+                const svgIcon = customCheckbox.querySelector('svg, div');
+                const input = label.querySelector('input');
+                
+                input.addEventListener('change', () => {
+                    // 如果是單選，清除其他的樣式
+                    if (!q.isMultipleChoice) {
+                        optionsContainer.querySelectorAll('.flex-shrink-0').forEach(box => {
+                            box.classList.remove('bg-blue-500', 'border-blue-500');
+                            box.querySelector('div').classList.remove('opacity-100');
+                            box.querySelector('div').classList.add('opacity-0');
+                        });
+                    }
+                    
+                    if (input.checked) {
+                        customCheckbox.classList.add('bg-blue-500', 'border-blue-500');
+                        svgIcon.classList.remove('opacity-0');
+                        svgIcon.classList.add('opacity-100');
+                    } else if (q.isMultipleChoice) {
+                        customCheckbox.classList.remove('bg-blue-500', 'border-blue-500');
+                        svgIcon.classList.add('opacity-0');
+                        svgIcon.classList.remove('opacity-100');
+                    }
+                });
+
+                // 初始狀態渲染
+                if (isChecked) {
+                    customCheckbox.classList.add('bg-blue-500', 'border-blue-500');
+                    svgIcon.classList.remove('opacity-0');
+                    svgIcon.classList.add('opacity-100');
+                }
+
+                optionsContainer.appendChild(label);
+            });
+
+            // 按鈕狀態更新
+            document.getElementById('btn-prev').disabled = (state.currentIdx === 0);
+            
+            const btnNext = document.getElementById('btn-next');
+            if (state.currentIdx === state.questions.length - 1) {
+                btnNext.textContent = '完成提交';
+                btnNext.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btnNext.classList.add('bg-green-600', 'hover:bg-green-700');
+            } else {
+                btnNext.textContent = '下一題';
+                btnNext.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                btnNext.classList.remove('bg-green-600', 'hover:bg-green-700');
+            }
+        }
+
+        function saveAnswer() {
+            const inputs = document.querySelectorAll(`#q-options input:checked`);
+            const selectedValues = Array.from(inputs).map(input => input.value);
+            state.userAnswers[state.currentIdx] = selectedValues;
+        }
+
+        function prevQuestion() {
+            if (state.currentIdx > 0) {
+                state.currentIdx--;
+                renderQuestion();
+            }
+        }
+
+        function nextQuestion() {
+            saveAnswer();
+            if (state.currentIdx < state.questions.length - 1) {
+                state.currentIdx++;
+                renderQuestion();
+            } else {
+                calculateAndShowResult();
+            }
+        }
+
+        // --- 結算與回顧 ---
+
+        function arraysEqualIgnoreOrder(a, b) {
+            if (a.length !== b.length) return false;
+            const sortedA = [...a].sort();
+            const sortedB = [...b].sort();
+            return sortedA.every((val, index) => val === sortedB[index]);
+        }
+
+        function calculateAndShowResult() {
+            document.getElementById('progress-indicator').classList.add('hidden');
+            
+            let correctCount = 0;
+            const reviewContainer = document.getElementById('review-container');
+            reviewContainer.innerHTML = '';
+
+            state.questions.forEach((q, idx) => {
+                const userAns = state.userAnswers[idx] || [];
+                const correctAns = q.correctAnswers;
+                
+                const isCorrect = arraysEqualIgnoreOrder(userAns, correctAns);
+                if (isCorrect) correctCount++;
+
+                // 建立回顧卡片
+                const card = document.createElement('div');
+                card.className = `bg-white border-l-4 ${isCorrect ? 'border-green-500' : 'border-red-500'} rounded-r-xl rounded-l-sm shadow-sm p-6`;
+                
+                let userAnsText = userAns.length > 0 ? userAns.join('、') : '<span class="text-slate-400 italic">未作答</span>';
+                let correctAnsText = correctAns.join('、');
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between mb-3 gap-4">
+                        <h4 class="text-lg font-bold text-slate-800">Q${idx + 1}. ${q.title}</h4>
+                        <span class="shrink-0 px-2.5 py-1 rounded text-xs font-bold ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${isCorrect ? '答對' : '答錯'}
+                        </span>
+                    </div>
+                    
+                    ${q.image ? `<img src="${q.image}" class="max-h-40 object-contain rounded mb-4 border border-slate-200" onerror="this.style.display='none'">` : ''}
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div class="bg-slate-50 p-3 rounded border border-slate-100">
+                            <div class="text-xs text-slate-500 mb-1">你的答案</div>
+                            <div class="font-medium ${isCorrect ? 'text-green-700' : 'text-red-600'}">${userAnsText}</div>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded border border-blue-100">
+                            <div class="text-xs text-slate-500 mb-1">正確答案</div>
+                            <div class="font-medium text-blue-800">${correctAnsText}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <div class="flex items-center gap-2 mb-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="font-bold text-slate-700 text-sm">詳解說明</span>
+                        </div>
+                        <p class="text-slate-600 text-sm leading-relaxed whitespace-pre-line">${q.explanation}</p>
+                    </div>
+                `;
+                reviewContainer.appendChild(card);
+            });
+
+            // 統計分數
+            const totalQuestions = state.questions.length;
+            const score = Math.round((correctCount / totalQuestions) * 100);
+
+            // 數字跳動動畫效果
+            animateValue("result-score", 0, score, 1000);
+            document.getElementById('result-correct').textContent = correctCount;
+            document.getElementById('result-wrong').textContent = totalQuestions - correctCount;
+
+            showView('result');
+            window.scrollTo(0, 0);
+        }
+
+        // 數字動畫輔助函數
+        function animateValue(id, start, end, duration) {
+            const obj = document.getElementById(id);
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+                obj.innerHTML = Math.floor(easeOutProgress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                } else {
+                    obj.innerHTML = end;
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        // --- 啟動 ---
+        window.addEventListener('DOMContentLoaded', initApp);
+
+    </script>
+</body>
+</html>
