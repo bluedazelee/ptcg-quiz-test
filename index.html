@@ -82,7 +82,14 @@
                 </svg>
             </div>
             <h2 class="text-2xl font-bold text-slate-800 mb-2">題庫載入完成！</h2>
-            <p class="text-slate-500 mb-8">共包含 <span id="start-total-q" class="font-bold text-blue-600">0</span> 道題目。<br>系統包含單選與多選題，準備好就可以開始了。</p>
+            <p class="text-slate-500 mb-6">共包含 <span id="start-total-q" class="font-bold text-blue-600">0</span> 道題目，系統包含單選與多選題。</p>
+            
+            <!-- 暱稱輸入區 -->
+            <div class="mb-8 max-w-xs mx-auto">
+                <label for="nickname-input" class="block text-sm font-bold text-slate-700 mb-2">請輸入您的暱稱 (選填)</label>
+                <input type="text" id="nickname-input" maxlength="8" placeholder="最多 8 個字元" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 outline-none transition-colors text-center text-lg placeholder-slate-400 font-medium">
+            </div>
+
             <button onclick="startQuiz()" class="w-full sm:w-auto px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition transform hover:scale-105 active:scale-95">
                 開始測驗
             </button>
@@ -134,8 +141,10 @@
         <div id="view-result" class="hidden w-full fade-in pb-12">
             <!-- 總分卡片 -->
             <div class="bg-white rounded-2xl shadow-sm p-8 text-center mb-8 mt-4">
-                <h2 class="text-2xl font-bold text-slate-800 mb-2">測驗完成！</h2>
-                <p class="text-slate-500 mb-6">以下是您的測驗結果與詳細回顧</p>
+                <h2 class="text-2xl font-bold text-slate-800 mb-1">測驗完成！</h2>
+                <p class="text-slate-600 mb-6 text-lg font-medium">
+                    <span id="display-nickname" class="text-blue-600 font-bold border-b-2 border-blue-200 pb-0.5">挑戰者</span> 的專屬成績單
+                </p>
                 
                 <div class="inline-flex flex-col items-center justify-center w-40 h-40 rounded-full border-8 border-blue-100 bg-blue-50 mb-4 relative">
                     <span class="text-4xl font-extrabold text-blue-600" id="result-score">0</span>
@@ -178,7 +187,8 @@
         const state = {
             questions: [],
             currentIdx: 0,
-            userAnswers: {} // key: question index, value: array of selected option texts
+            userAnswers: {}, // key: question index, value: array of selected option texts
+            nickname: '挑戰者' // 預設暱稱
         };
 
         // DOM 元素快取
@@ -258,7 +268,7 @@
                 else if (h.includes('選') || h.includes('option')) colMap.options.push(idx);
             });
 
-            // 如果找不到特定標題，回退到預設索引機制 (根據使用者的 prompt)
+            // 如果找不到特定標題，回退到預設索引機制
             if (colMap.title === undefined) colMap.title = 0;
             if (colMap.image === undefined) colMap.image = 1;
             if (colMap.options.length === 0) colMap.options = [2, 3];
@@ -269,7 +279,7 @@
 
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
-                if (!row || !row[colMap.title] || row[colMap.title].trim() === "") continue; // 跳過空行
+                if (!row || !row[colMap.title] || row[colMap.title].trim() === "") continue;
 
                 const title = row[colMap.title].trim();
                 const image = row[colMap.image] ? row[colMap.image].trim() : "";
@@ -303,7 +313,7 @@
 
                 state.questions.push({
                     id: i,
-                    originalId: i, // 保留原始題號以便追蹤（非必要，但有助於除錯）
+                    originalId: i,
                     title,
                     image,
                     options,
@@ -317,7 +327,7 @@
                 throw new Error("找不到有效的題目，請檢查試算表格式。");
             }
 
-            // 【新增】：將題目陣列隨機打亂
+            // 將題目陣列隨機打亂
             shuffleArray(state.questions);
 
             document.getElementById('start-total-q').textContent = state.questions.length;
@@ -327,6 +337,14 @@
         // --- 測驗流程控制 ---
 
         function startQuiz() {
+            // 讀取暱稱輸入
+            const inputName = document.getElementById('nickname-input').value.trim();
+            if (inputName) {
+                state.nickname = inputName;
+            } else {
+                state.nickname = '挑戰者'; // 未輸入時的預設值
+            }
+
             state.currentIdx = 0;
             state.userAnswers = {};
             document.getElementById('progress-indicator').classList.remove('hidden');
@@ -475,6 +493,9 @@
         function calculateAndShowResult() {
             document.getElementById('progress-indicator').classList.add('hidden');
             
+            // 顯示暱稱
+            document.getElementById('display-nickname').textContent = state.nickname;
+
             let correctCount = 0;
             const reviewContainer = document.getElementById('review-container');
             reviewContainer.innerHTML = '';
@@ -560,6 +581,13 @@
 
         // --- 啟動 ---
         window.addEventListener('DOMContentLoaded', initApp);
+
+        // 綁定輸入框 Enter 鍵直接開始
+        document.getElementById('nickname-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                startQuiz();
+            }
+        });
 
     </script>
 </body>
