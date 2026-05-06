@@ -12,9 +12,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Inject Firebase API Key
-        # 使用 sed 指令將 HTML 內的佔位符替換成 Secret 中的金鑰
         run: |
+          # 1. 執行替換指令 (請確認這裡的路徑正確)
           sed -i 's/FIREBASE_API_KEY_PLACEHOLDER/${{ secrets.FIREBASE_API_KEY }}/g' index.html
+          
+          # 2. 除錯檢查：看看檔案裡還有沒有佔位符
+          if grep -q "FIREBASE_API_KEY_PLACEHOLDER" index.html; then
+            echo "❌ 錯誤：替換失敗！佔位符依然存在。請檢查路徑或檔案內容是否吻合。"
+            exit 1 # 強制讓這個 Action 標示為失敗 (紅色叉叉)
+          else
+            echo "✅ 成功：佔位符已消失！"
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
