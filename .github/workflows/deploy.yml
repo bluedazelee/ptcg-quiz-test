@@ -35,11 +35,12 @@ jobs:
           cat << EOF > firebase-env.js
           export const firebaseConfig = {
             apiKey: "${{ secrets.FIREBASE_API_KEY }}",
-            authDomain: "your-project.firebaseapp.com",
-            projectId: "your-project",
-            storageBucket: "your-project.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdefg"
+            authDomain: "ptcg-quiz-test.firebaseapp.com",
+            projectId: "ptcg-quiz-test",
+            storageBucket: "ptcg-quiz-test.firebasestorage.app",
+            messagingSenderId: "151102927798",
+            appId: "1:151102927798:web:7262d98845b866d10f0717",
+            measurementId: "G-T1F7SB2JX3"
           };
           EOF
 
