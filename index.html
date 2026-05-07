@@ -293,15 +293,17 @@
         import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "FIREBASE_API_KEY_PLACEHOLDER",
-            authDomain: "ptcg-quiz-test.firebaseapp.com",
-            projectId: "ptcg-quiz-test",
-            storageBucket: "ptcg-quiz-test.firebasestorage.app",
-            messagingSenderId: "151102927798",
-            appId: "1:151102927798:web:7262d98845b866d10f0717",
-            measurementId: "G-T1F7SB2JX3"
-        };
+        // const firebaseConfig = {
+        //     apiKey: "FIREBASE_API_KEY_PLACEHOLDER",
+        //     authDomain: "ptcg-quiz-test.firebaseapp.com",
+        //     projectId: "ptcg-quiz-test",
+        //     storageBucket: "ptcg-quiz-test.firebasestorage.app",
+        //     messagingSenderId: "151102927798",
+        //     appId: "1:151102927798:web:7262d98845b866d10f0717",
+        //     measurementId: "G-T1F7SB2JX3"
+        // };
+        
+        import { firebaseConfig } from "./firebase-env.js";
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
