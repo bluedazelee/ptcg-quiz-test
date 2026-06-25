@@ -91,10 +91,24 @@
             <h2 class="text-3xl font-extrabold text-slate-900 mb-2">準備好接受挑戰了嗎？</h2>
             <p class="text-slate-500 mb-10 text-lg">題庫包含 <span id="start-total-q" class="font-bold text-blue-600">0</span> 道題目。</p>
             
-            <div class="mb-10 max-w-sm mx-auto">
+            <div class="mb-8 max-w-sm mx-auto">
                 <label for="nickname-input" class="block text-sm font-bold text-slate-700 mb-3 text-left pl-1">暱稱（選填）</label>
-                <input type="text" id="nickname-input" maxlength="10" placeholder="輸入暱稱 (最多 10 字)" 
+                <input type="text" id="nickname-input" maxlength="10" placeholder="輸入暱稱 (最多 10 字)"
                     class="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 outline-none transition-all text-center text-xl font-bold placeholder-slate-300">
+            </div>
+
+            <div class="mb-8 max-w-sm mx-auto">
+                <p class="text-sm font-bold text-slate-700 mb-3 text-left pl-1">選擇題庫</p>
+                <div class="flex gap-3">
+                    <button id="bank-btn-A" onclick="selectBank('A')" class="flex-1 py-4 px-3 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm transition-all active:scale-95">
+                        <div class="text-base font-black mb-1">招式效果順序</div>
+                        <div class="text-xs font-bold text-blue-400">共 <span id="count-A">0</span> 題</div>
+                    </button>
+                    <button id="bank-btn-B" onclick="selectBank('B')" class="flex-1 py-4 px-3 rounded-2xl border-2 border-slate-200 text-slate-600 font-bold text-sm transition-all active:scale-95 hover:border-slate-300">
+                        <div class="text-base font-black mb-1">「消除」效果</div>
+                        <div class="text-xs font-bold text-slate-400">共 <span id="count-B">0</span> 題</div>
+                    </button>
+                </div>
             </div>
 
             <div class="flex flex-col sm:flex-row justify-center gap-4">
@@ -127,17 +141,8 @@
 
                     <h3 id="q-title" class="text-2xl sm:text-3xl font-bold text-slate-900 mb-8 leading-tight">...</h3>
 
-                    <!-- 測驗中的卡圖區域 (加入固定尺寸與點擊放大) -->
-                    <div id="q-image-container" class="mb-8 hidden text-center">
-                        <div class="relative inline-block overflow-hidden rounded-2xl border border-slate-200 bg-white cursor-pointer shadow-sm hover:shadow-lg transition-all hover:ring-2 hover:ring-blue-400 group" onclick="openImageModal(document.getElementById('q-image').src)">
-                            <img id="q-image" src="" alt="題目圖片" class="h-40 sm:h-56 w-auto object-contain mx-auto" onerror="this.parentElement.parentElement.classList.add('hidden');">
-                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md bg-black/30 p-2 rounded-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- 題目卡圖區域：單圖或多圖橫向捲動，由 renderQuestion() 動態注入 -->
+                    <div id="q-image-container" class="mb-8 hidden"></div>
 
                     <div id="q-options" class="grid grid-cols-1 gap-4">
                         <!-- Options injected here -->
@@ -224,6 +229,13 @@
                     <p class="text-amber-50 text-sm font-bold opacity-80 uppercase tracking-widest">排行榜</p>
                 </div>
                 
+                <!-- 題庫篩選 tabs -->
+                <div id="lb-filter-tabs" class="flex border-b border-slate-200 bg-white">
+                    <button id="tab-all" onclick="setLeaderboardFilter('all')" class="flex-1 py-2.5 text-xs font-bold transition-colors text-blue-600 border-b-2 border-blue-600">全部</button>
+                    <button id="tab-A" onclick="setLeaderboardFilter('A')" class="flex-1 py-2.5 text-xs font-bold transition-colors text-slate-400 border-b-2 border-transparent hover:text-slate-600">招式效果順序</button>
+                    <button id="tab-B" onclick="setLeaderboardFilter('B')" class="flex-1 py-2.5 text-xs font-bold transition-colors text-slate-400 border-b-2 border-transparent hover:text-slate-600">「消除」效果</button>
+                </div>
+
                 <!-- 本次成績區塊 (預設隱藏) -->
                 <div id="current-score-banner" class="hidden bg-blue-50 border-b border-blue-100 p-4">
                     <p class="text-xs text-blue-500 font-bold uppercase tracking-widest mb-1 text-center">本次測驗成績</p>
@@ -320,9 +332,13 @@
             isAuthReady: false,
             lastScore: null,
             lastTime: null,
-            // Pagination state
             currentPage: 1,
-            itemsPerPage: 3
+            itemsPerPage: 3,
+            currentQuizBank: 'A',
+            questionsA: [],
+            questionsB: [],
+            leaderboardFilter: 'all',
+            lastQuizBank: null
         };
 
         const views = {
@@ -333,7 +349,9 @@
             result: document.getElementById('view-result')
         };
 
-        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQJct_Ip13Rzm3V9uqEywbABfRTpfkM_vvSb9DPOo-xKEZV59DkHWTQIGSEtTwI0_I_7IIF0IRDGE9U/pub?output=csv";
+        const CSV_URL_A = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQJct_Ip13Rzm3V9uqEywbABfRTpfkM_vvSb9DPOo-xKEZV59DkHWTQIGSEtTwI0_I_7IIF0IRDGE9U/pub?output=csv";
+        const CSV_URL_B = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQpCeDJrbYAShATFp_ltvepaVxD94f3FOx_Yj-nj_2jAdxAEslw5r9ey-WhHOkz8aO2YhM0NP09XrtV/pub?gid=0&single=true&output=csv";
+        const BANK_NAMES = { 'A': '招式效果順序', 'B': '「消除」效果' };
 
         // Auth Logic
         console.log("⏳ [1] 開始初始化 Firebase 驗證...");
@@ -362,14 +380,40 @@
         // Initialize App
         async function initApp() {
             showView('loading');
-            try {
-                const response = await fetch(CSV_URL);
-                if (!response.ok) throw new Error('Network error');
-                const csvText = await response.text();
-                parseData(csvText);
-            } catch (error) {
-                showError("無法從 Google 試算表載入題庫，請檢查發布設定。");
+            const [resultA, resultB] = await Promise.allSettled([
+                fetch(CSV_URL_A).then(r => { if (!r.ok) throw new Error('Network error'); return r.text(); }),
+                fetch(CSV_URL_B).then(r => { if (!r.ok) throw new Error('Network error'); return r.text(); })
+            ]);
+
+            if (resultA.status === 'fulfilled') {
+                state.questionsA = parseData(resultA.value);
+                shuffleArray(state.questionsA);
             }
+            if (resultB.status === 'fulfilled') {
+                state.questionsB = parseData(resultB.value);
+                shuffleArray(state.questionsB);
+            }
+
+            if (state.questionsA.length === 0 && state.questionsB.length === 0) {
+                showError("無法從 Google 試算表載入題庫，請檢查發布設定。");
+                return;
+            }
+
+            const btnA = document.getElementById('bank-btn-A');
+            const btnB = document.getElementById('bank-btn-B');
+            if (state.questionsA.length === 0) {
+                btnA.disabled = true;
+                btnA.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            if (state.questionsB.length === 0) {
+                btnB.disabled = true;
+                btnB.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+
+            document.getElementById('total-q-num').textContent = state.questionsA.length;
+            const defaultBank = state.questionsA.length > 0 ? 'A' : 'B';
+            selectBank(defaultBank);
+            showView('start');
         }
 
         function showView(viewName) {
@@ -403,26 +447,26 @@
 
         function parseData(csvText) {
             const rawData = parseCSV(csvText);
-            if (rawData.length < 2) throw new Error("Empty sheet");
+            if (rawData.length < 2) return [];
 
             const headers = rawData[0].map(h => h.trim().toLowerCase());
-            const colMap = { options: [] };
-            
+            const colMap = { options: [], images: [] };
+
             headers.forEach((h, idx) => {
                 if (h.includes('題') || h === 'question') colMap.title = idx;
-                else if (h.includes('圖') || h === 'image') colMap.image = idx;
+                else if (h.includes('圖') || h === 'image') colMap.images.push(idx);
                 else if (h.includes('答案') || h === 'answer') colMap.answer = idx;
                 else if (h.includes('解') || h === 'explanation') colMap.explanation = idx;
                 else if (h.includes('選') || h.includes('option')) colMap.options.push(idx);
             });
 
             if (colMap.title === undefined) colMap.title = 0;
-            if (colMap.image === undefined) colMap.image = 1;
+            if (colMap.images.length === 0) colMap.images = [1];
             if (colMap.options.length === 0) colMap.options = [2, 3];
             if (colMap.answer === undefined) colMap.answer = 4;
             if (colMap.explanation === undefined) colMap.explanation = 5;
 
-            state.questions = [];
+            const questions = [];
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 if (!row || !row[colMap.title]) continue;
@@ -443,9 +487,14 @@
                     return ans;
                 });
 
-                state.questions.push({
+                const imgs = [];
+                colMap.images.forEach(idx => {
+                    if (row[idx] && row[idx].trim()) imgs.push(row[idx].trim());
+                });
+
+                questions.push({
                     title: row[colMap.title].trim(),
-                    image: row[colMap.image] ? row[colMap.image].trim() : "",
+                    images: imgs,
                     options: opts,
                     correctAnswers,
                     isMultiple: correctAnswers.length > 1,
@@ -453,10 +502,7 @@
                 });
             }
 
-            shuffleArray(state.questions);
-            document.getElementById('start-total-q').textContent = state.questions.length;
-            document.getElementById('total-q-num').textContent = state.questions.length;
-            showView('start');
+            return questions;
         }
 
         function shuffleArray(array) {
@@ -466,13 +512,39 @@
             }
         }
 
+        function selectBank(bank) {
+            state.currentQuizBank = bank;
+            const btnA = document.getElementById('bank-btn-A');
+            const btnB = document.getElementById('bank-btn-B');
+            if (!btnA || !btnB) return;
+
+            if (bank === 'A') {
+                btnA.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700');
+                btnA.classList.remove('border-slate-200', 'text-slate-600');
+                btnB.classList.add('border-slate-200', 'text-slate-600');
+                btnB.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700');
+            } else {
+                btnB.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700');
+                btnB.classList.remove('border-slate-200', 'text-slate-600');
+                btnA.classList.add('border-slate-200', 'text-slate-600');
+                btnA.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700');
+            }
+
+            document.getElementById('count-A').textContent = state.questionsA.length;
+            document.getElementById('count-B').textContent = state.questionsB.length;
+            document.getElementById('start-total-q').textContent =
+                bank === 'A' ? state.questionsA.length : state.questionsB.length;
+        }
+
         function startQuiz() {
             const input = document.getElementById('nickname-input').value.trim();
             state.nickname = input || '挑戰者';
+            state.questions = state.currentQuizBank === 'A' ? state.questionsA : state.questionsB;
             state.currentIdx = 0;
             state.userAnswers = {};
             state.lastScore = null;
             state.lastTime = null;
+            document.getElementById('total-q-num').textContent = state.questions.length;
             document.getElementById('quiz-progress-text').classList.remove('hidden');
             showView('quiz');
             renderQuestion();
@@ -489,12 +561,40 @@
             badge.className = q.isMultiple ? 'px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full bg-purple-100 text-purple-700' : 'px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full bg-blue-100 text-blue-700';
 
             const imgCont = document.getElementById('q-image-container');
-            const imgEl = document.getElementById('q-image');
-            if (q.image) {
-                imgEl.src = q.image;
-                imgCont.classList.remove('hidden');
+            imgCont.innerHTML = '';
+            if (q.images.length === 0) {
+                imgCont.className = 'mb-8 hidden';
+            } else if (q.images.length === 1) {
+                const url = q.images[0];
+                imgCont.className = 'mb-8 text-center';
+                const wrapper = document.createElement('div');
+                wrapper.className = 'relative inline-block overflow-hidden rounded-2xl border border-slate-200 bg-white cursor-pointer shadow-sm hover:shadow-lg transition-all hover:ring-2 hover:ring-blue-400 group';
+                wrapper.onclick = () => openImageModal(url);
+                wrapper.innerHTML = `
+                    <img src="${url}" alt="題目圖片" class="h-40 sm:h-56 w-auto object-contain mx-auto" onerror="this.parentElement.parentElement.classList.add('hidden');">
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md bg-black/30 p-2 rounded-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>`;
+                imgCont.appendChild(wrapper);
             } else {
-                imgCont.classList.add('hidden');
+                imgCont.className = 'mb-8 flex gap-3 overflow-x-auto no-scrollbar pb-2';
+                const frag = document.createDocumentFragment();
+                q.images.forEach(url => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'relative flex-shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white cursor-pointer shadow-sm hover:shadow-lg transition-all hover:ring-2 hover:ring-blue-400 group';
+                    wrapper.onclick = () => openImageModal(url);
+                    wrapper.innerHTML = `
+                        <img src="${url}" alt="卡牌圖片" class="h-40 sm:h-56 w-auto object-contain" onerror="this.parentElement.remove();">
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md bg-black/30 p-2 rounded-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                            </svg>
+                        </div>`;
+                    frag.appendChild(wrapper);
+                });
+                imgCont.appendChild(frag);
             }
 
             const optionsDiv = document.getElementById('q-options');
@@ -589,19 +689,32 @@
                 const card = document.createElement('div');
                 card.className = `bg-white rounded-2xl shadow-sm border-l-8 ${isCorrect ? 'border-green-500' : 'border-red-500'} p-6 transition-transform hover:scale-[1.01]`;
                 
-                // 動態生成詳解區域的卡圖 (若有圖片的話)
-                const imageSection = q.image ? `
+                // 動態生成詳解區域的卡圖
+                let imageSection = '';
+                if (q.images.length === 1) {
+                    imageSection = `
                     <div class="mb-6 text-center">
-                        <div class="relative inline-block overflow-hidden rounded-xl border border-slate-200 bg-white cursor-pointer shadow-sm hover:shadow-md transition-all hover:ring-2 hover:ring-blue-400 group" onclick="openImageModal('${q.image}')">
-                            <img src="${q.image}" class="h-32 sm:h-48 w-auto object-contain mx-auto" onerror="this.parentElement.style.display='none'">
+                        <div class="relative inline-block overflow-hidden rounded-xl border border-slate-200 bg-white cursor-pointer shadow-sm hover:shadow-md transition-all hover:ring-2 hover:ring-blue-400 group" onclick="openImageModal('${q.images[0]}')">
+                            <img src="${q.images[0]}" class="h-32 sm:h-48 w-auto object-contain mx-auto" onerror="this.parentElement.style.display='none'">
                             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md bg-black/30 p-1.5 rounded-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
                                 </svg>
                             </div>
                         </div>
-                    </div>
-                ` : '';
+                    </div>`;
+                } else if (q.images.length > 1) {
+                    const imgTags = q.images.map(url => `
+                        <div class="relative flex-shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white cursor-pointer shadow-sm hover:shadow-md transition-all hover:ring-2 hover:ring-blue-400 group" onclick="openImageModal('${url}')">
+                            <img src="${url}" class="h-32 sm:h-48 w-auto object-contain" onerror="this.parentElement.remove()">
+                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md bg-black/30 p-1.5 rounded-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                </svg>
+                            </div>
+                        </div>`).join('');
+                    imageSection = `<div class="mb-6 flex gap-3 overflow-x-auto no-scrollbar pb-1">${imgTags}</div>`;
+                }
 
                 card.innerHTML = `
                     <div class="flex justify-between items-start mb-4 gap-2">
@@ -636,6 +749,7 @@
             
             state.lastScore = score;
             state.lastTime = nowTime;
+            state.lastQuizBank = state.currentQuizBank;
             
             document.getElementById('display-nickname').textContent = state.nickname;
             document.getElementById('result-score').textContent = score;
@@ -656,7 +770,8 @@
                         correctCount: correctCount,
                         totalQuestions: state.questions.length,
                         timestamp: serverTimestamp(),
-                        time: nowTime
+                        time: nowTime,
+                        quizBank: state.currentQuizBank
                     });
                     console.log("✅ 雲端寫入成功！");
                 } catch (e) {
@@ -694,29 +809,35 @@
             });
         }
 
+        function getFilteredData() {
+            if (!state.fullSortedData) return [];
+            if (state.leaderboardFilter === 'all') return state.fullSortedData;
+            return state.fullSortedData.filter(e => e.quizBank === state.leaderboardFilter);
+        }
+
         function renderLeaderboardList() {
             const list = document.getElementById('leaderboard-list');
             list.innerHTML = '';
-            
+
+            const filteredData = getFilteredData();
+
+            // Banner: rank scoped to lastQuizBank
             const banner = document.getElementById('current-score-banner');
             if (state.lastScore !== null && state.fullSortedData) {
                 banner.classList.remove('hidden');
                 document.getElementById('banner-score').textContent = state.lastScore;
-                
-                const rankIndex = state.fullSortedData.findIndex(entry => 
-                    entry.score === state.lastScore && entry.time === state.lastTime
+                const bannerData = state.lastQuizBank
+                    ? state.fullSortedData.filter(e => e.quizBank === state.lastQuizBank)
+                    : state.fullSortedData;
+                const rankIndex = bannerData.findIndex(e =>
+                    e.score === state.lastScore && e.time === state.lastTime
                 );
-                
-                if (rankIndex !== -1) {
-                    document.getElementById('banner-rank').textContent = rankIndex + 1;
-                } else {
-                    document.getElementById('banner-rank').textContent = '-';
-                }
+                document.getElementById('banner-rank').textContent = rankIndex !== -1 ? rankIndex + 1 : '-';
             } else {
                 banner.classList.add('hidden');
             }
-            
-            if (!state.fullSortedData || state.fullSortedData.length === 0) {
+
+            if (filteredData.length === 0) {
                 list.innerHTML = '<div class="text-center py-10 text-slate-400 font-bold">尚無挑戰紀錄</div>';
                 document.getElementById('page-info').textContent = '0 / 0';
                 document.getElementById('btn-prev-page').disabled = true;
@@ -724,8 +845,7 @@
                 return;
             }
 
-            // 分頁邏輯計算
-            const totalPages = Math.ceil(state.fullSortedData.length / state.itemsPerPage);
+            const totalPages = Math.ceil(filteredData.length / state.itemsPerPage);
             if (state.currentPage > totalPages) state.currentPage = totalPages;
             if (state.currentPage < 1) state.currentPage = 1;
 
@@ -734,19 +854,22 @@
             document.getElementById('btn-next-page').disabled = state.currentPage === totalPages;
 
             const startIndex = (state.currentPage - 1) * state.itemsPerPage;
-            const endIndex = startIndex + state.itemsPerPage;
-            const currentData = state.fullSortedData.slice(startIndex, endIndex);
+            const currentData = filteredData.slice(startIndex, startIndex + state.itemsPerPage);
 
             currentData.forEach((entry, i) => {
                 const actualRank = startIndex + i + 1;
-                
                 const div = document.createElement('div');
                 div.className = "flex items-center justify-between p-4 bg-white rounded-2xl mb-3 shadow-sm border border-slate-100 fade-in";
-                
+
                 let rankStyle = "text-slate-400";
                 if (actualRank === 1) rankStyle = "text-yellow-500 scale-125";
                 else if (actualRank === 2) rankStyle = "text-slate-300 scale-110";
                 else if (actualRank === 3) rankStyle = "text-amber-700";
+
+                const bankName = entry.quizBank ? BANK_NAMES[entry.quizBank] : null;
+                const bankBadge = bankName
+                    ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 ${entry.quizBank === 'A' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}">${bankName}</span>`
+                    : '';
 
                 div.innerHTML = `
                     <div class="flex items-center gap-4">
@@ -754,6 +877,7 @@
                         <div class="flex flex-col">
                             <span class="font-black text-slate-800 truncate max-w-[120px]">${entry.nickname}</span>
                             <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">${new Date(entry.time).toLocaleDateString()}</span>
+                            ${bankBadge}
                         </div>
                     </div>
                     <div class="text-right">
@@ -774,19 +898,41 @@
         };
 
         window.nextPage = () => {
-            const totalPages = Math.ceil(state.fullSortedData.length / state.itemsPerPage);
+            const totalPages = Math.ceil(getFilteredData().length / state.itemsPerPage);
             if (state.currentPage < totalPages) {
                 state.currentPage++;
                 renderLeaderboardList();
             }
         };
 
+        function setTabStyle(activeFilter) {
+            ['all', 'A', 'B'].forEach(f => {
+                const tab = document.getElementById(`tab-${f}`);
+                if (!tab) return;
+                if (f === activeFilter) {
+                    tab.classList.add('text-blue-600', 'border-blue-600');
+                    tab.classList.remove('text-slate-400', 'border-transparent');
+                } else {
+                    tab.classList.add('text-slate-400', 'border-transparent');
+                    tab.classList.remove('text-blue-600', 'border-blue-600');
+                }
+            });
+        }
+
+        window.setLeaderboardFilter = (filter) => {
+            state.leaderboardFilter = filter;
+            state.currentPage = 1;
+            setTabStyle(filter);
+            renderLeaderboardList();
+        };
+
         window.openLeaderboard = () => {
             const modal = document.getElementById('leaderboard-modal');
             const card = document.getElementById('leaderboard-card');
-            
-            // 每次開啟排行榜，重置回第一頁
+
             state.currentPage = 1;
+            state.leaderboardFilter = 'all';
+            setTabStyle('all');
             renderLeaderboardList();
             
             modal.classList.remove('hidden');
@@ -826,14 +972,16 @@
 
         window.restartApp = () => {
             shuffleArray(state.questions);
-            state.lastScore = null; 
+            state.lastScore = null;
             state.lastTime = null;
             showView('start');
+            selectBank(state.currentQuizBank);
             window.scrollTo(0, 0);
         };
 
         window.startQuiz = startQuiz;
         window.initApp = initApp;
+        window.selectBank = selectBank;
 
         // Run
         initApp();
