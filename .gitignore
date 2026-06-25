@@ -1,2 +1,7 @@
 # 忽略 Firebase 本地端設定檔
 firebase-env.js
+.claude/
+.codex/
+.cursor/
+.gemini/
+.github/
