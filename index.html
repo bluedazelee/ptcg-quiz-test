@@ -303,48 +303,41 @@
             </div>
         </div>
 
-        <!-- Result Lookup Modal -->
-        <div id="result-lookup-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 hidden opacity-0 transition-opacity duration-300 p-4 backdrop-blur-sm">
-            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden transform scale-90 transition-transform duration-300 flex flex-col max-h-[90vh]" id="result-lookup-card">
-                <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 text-white text-center relative">
-                    <button onclick="closeResultLookup()" class="absolute top-4 right-4 bg-black/10 hover:bg-black/20 p-2 rounded-full transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                    <div class="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                    </div>
-                    <h3 class="text-2xl font-black tracking-tight">查詢答題結果</h3>
-                    <p class="text-blue-100 text-sm font-bold opacity-80 mt-1">輸入代碼查看詳細答題明細</p>
+        <!-- View: Lookup -->
+        <div id="view-lookup" class="hidden w-full fade-in pb-20">
+            <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-6 text-white text-center mt-6 mb-6 shadow-2xl">
+                <div class="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
                 </div>
+                <h2 class="text-2xl font-black tracking-tight">查詢答題結果</h2>
+                <p class="text-blue-100 text-sm font-bold opacity-80 mt-1">輸入代碼查看詳細答題明細</p>
+            </div>
 
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex gap-3">
-                        <input id="lookup-code-input" type="text" maxlength="6" placeholder="輸入 6 位代碼" autocomplete="off"
-                            class="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all text-center text-xl font-black tracking-[0.3em] uppercase font-mono placeholder:text-slate-300 placeholder:font-normal placeholder:tracking-normal">
-                        <button id="btn-lookup" onclick="lookupResultCode()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 whitespace-nowrap">
-                            查詢
-                        </button>
-                    </div>
-                </div>
-
-                <div class="flex-grow overflow-y-auto no-scrollbar" id="lookup-result-container">
-                    <div class="flex flex-col items-center justify-center py-16 text-slate-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <p class="font-bold text-sm">輸入代碼開始查詢</p>
-                    </div>
-                </div>
-
-                <div class="p-4 border-t border-slate-100 bg-white">
-                    <button onclick="closeResultLookup()" class="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-2xl transition-all active:scale-95">
-                        關閉
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+                <div class="flex flex-wrap gap-3">
+                    <input id="lookup-code-input" type="text" maxlength="6" placeholder="輸入 6 位代碼" autocomplete="off"
+                        class="flex-1 min-w-[10rem] px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all text-center text-xl font-black tracking-wider uppercase font-mono placeholder:text-slate-300 placeholder:font-normal placeholder:tracking-normal">
+                    <button id="btn-lookup" onclick="lookupResultCode()" class="flex-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
+                        查詢
                     </button>
                 </div>
+            </div>
+
+            <div id="lookup-result-container" class="flex flex-col gap-4">
+                <div class="flex flex-col items-center justify-center py-16 text-slate-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <p class="font-bold text-sm">輸入代碼開始查詢</p>
+                </div>
+            </div>
+
+            <div class="mt-8">
+                <button onclick="closeResultLookup()" class="w-full py-4 bg-slate-900 hover:bg-black text-white font-bold rounded-2xl shadow-xl transition-all active:scale-95">
+                    返回選單
+                </button>
             </div>
         </div>
 
@@ -411,7 +404,8 @@
             error: document.getElementById('view-error'),
             start: document.getElementById('view-start'),
             quiz: document.getElementById('view-quiz'),
-            result: document.getElementById('view-result')
+            result: document.getElementById('view-result'),
+            lookup: document.getElementById('view-lookup')
         };
 
         const CSV_URL_A = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQJct_Ip13Rzm3V9uqEywbABfRTpfkM_vvSb9DPOo-xKEZV59DkHWTQIGSEtTwI0_I_7IIF0IRDGE9U/pub?output=csv";
@@ -1107,8 +1101,6 @@
 
         // --- 代碼查詢邏輯 ---
         window.openResultLookup = () => {
-            const modal = document.getElementById('result-lookup-modal');
-            const card = document.getElementById('result-lookup-card');
             document.getElementById('lookup-code-input').value = '';
             document.getElementById('lookup-result-container').innerHTML = `
                 <div class="flex flex-col items-center justify-center py-16 text-slate-400">
@@ -1117,19 +1109,13 @@
                     </svg>
                     <p class="font-bold text-sm">輸入代碼開始查詢</p>
                 </div>`;
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.replace('opacity-0', 'opacity-100');
-                card.classList.replace('scale-90', 'scale-100');
-            }, 10);
+            showView('lookup');
+            window.scrollTo(0, 0);
         };
 
         window.closeResultLookup = () => {
-            const modal = document.getElementById('result-lookup-modal');
-            const card = document.getElementById('result-lookup-card');
-            modal.classList.replace('opacity-100', 'opacity-0');
-            card.classList.replace('scale-100', 'scale-90');
-            setTimeout(() => modal.classList.add('hidden'), 300);
+            showView('start');
+            window.scrollTo(0, 0);
         };
 
         window.lookupResultCode = async () => {
