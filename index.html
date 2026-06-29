@@ -145,6 +145,7 @@
                 <div class="p-8 sm:p-10">
                     <div class="mb-6 flex justify-between items-center">
                         <span id="q-type-badge" class="px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full bg-blue-100 text-blue-700">單選題</span>
+                        <span id="q-accuracy-badge" class="hidden text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full"></span>
                     </div>
 
                     <h3 id="q-title" class="text-2xl sm:text-3xl font-bold text-slate-900 mb-8 leading-tight">...</h3>
@@ -512,7 +513,9 @@
             const colMap = { options: [], images: [] };
 
             headers.forEach((h, idx) => {
-                if (h.includes('題') || h === 'question') colMap.title = idx;
+                if (h === '回答數') colMap.attempts = idx;
+                else if (h === '正確數') colMap.corrects = idx;
+                else if (h.includes('題') || h === 'question') colMap.title = idx;
                 else if (h.includes('圖') || h === 'image') colMap.images.push(idx);
                 else if (h.includes('答案') || h === 'answer') colMap.answer = idx;
                 else if (h.includes('解') || h === 'explanation') colMap.explanation = idx;
@@ -551,13 +554,18 @@
                     if (row[idx] && row[idx].trim()) imgs.push(row[idx].trim());
                 });
 
+                const rawAttempts = colMap.attempts !== undefined ? parseInt(row[colMap.attempts]) : NaN;
+                const rawCorrects = colMap.corrects !== undefined ? parseInt(row[colMap.corrects]) : NaN;
+
                 questions.push({
                     title: row[colMap.title].trim(),
                     images: imgs,
                     options: opts,
                     correctAnswers,
                     isMultiple: correctAnswers.length > 1,
-                    explanation: row[colMap.explanation] ? row[colMap.explanation].trim() : "目前無詳解說明。"
+                    explanation: row[colMap.explanation] ? row[colMap.explanation].trim() : "目前無詳解說明。",
+                    attemptCount: isNaN(rawAttempts) ? 0 : rawAttempts,
+                    correctCount: isNaN(rawCorrects) ? 0 : rawCorrects
                 });
             }
 
@@ -618,6 +626,14 @@
             const badge = document.getElementById('q-type-badge');
             badge.textContent = q.isMultiple ? '多選題' : '單選題';
             badge.className = q.isMultiple ? 'px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full bg-purple-100 text-purple-700' : 'px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full bg-blue-100 text-blue-700';
+
+            const accuracyBadge = document.getElementById('q-accuracy-badge');
+            if (q.attemptCount > 0) {
+                accuracyBadge.textContent = (q.correctCount / q.attemptCount * 100).toFixed(2) + '%';
+                accuracyBadge.classList.remove('hidden');
+            } else {
+                accuracyBadge.classList.add('hidden');
+            }
 
             const imgCont = document.getElementById('q-image-container');
             imgCont.innerHTML = '';
