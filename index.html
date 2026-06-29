@@ -125,6 +125,14 @@
                     排行榜
                 </button>
             </div>
+            <div class="mt-4 flex justify-center">
+                <button onclick="openResultLookup()" class="px-8 py-3 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-500 font-bold rounded-2xl shadow-sm transition-all active:scale-95 flex items-center gap-2 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    用代碼查詢答題結果
+                </button>
+            </div>
         </div>
 
         <!-- View: Quiz -->
@@ -187,6 +195,17 @@
                         <div class="text-3xl font-black text-red-500" id="result-wrong">0</div>
                         <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">答錯</div>
                     </div>
+                </div>
+
+                <!-- 答題代碼卡片 -->
+                <div id="result-code-card" class="mx-auto max-w-sm mb-8 p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">答題代碼</p>
+                    <div class="flex justify-center gap-2 mb-4" id="result-code-display">
+                        <div class="animate-pulse h-10 w-full bg-slate-200 rounded-xl"></div>
+                    </div>
+                    <button id="btn-copy-code" onclick="copyResultCode()" class="w-full py-2.5 bg-slate-800 hover:bg-black text-white text-sm font-bold rounded-xl transition-all active:scale-95">
+                        複製代碼
+                    </button>
                 </div>
 
                 <div class="flex flex-col sm:flex-row justify-center gap-4">
@@ -284,6 +303,51 @@
             </div>
         </div>
 
+        <!-- Result Lookup Modal -->
+        <div id="result-lookup-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 hidden opacity-0 transition-opacity duration-300 p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden transform scale-90 transition-transform duration-300 flex flex-col max-h-[90vh]" id="result-lookup-card">
+                <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 text-white text-center relative">
+                    <button onclick="closeResultLookup()" class="absolute top-4 right-4 bg-black/10 hover:bg-black/20 p-2 rounded-full transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <div class="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-black tracking-tight">查詢答題結果</h3>
+                    <p class="text-blue-100 text-sm font-bold opacity-80 mt-1">輸入代碼查看詳細答題明細</p>
+                </div>
+
+                <div class="p-6 border-b border-slate-100">
+                    <div class="flex gap-3">
+                        <input id="lookup-code-input" type="text" maxlength="6" placeholder="輸入 6 位代碼" autocomplete="off"
+                            class="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all text-center text-xl font-black tracking-[0.3em] uppercase font-mono placeholder:text-slate-300 placeholder:font-normal placeholder:tracking-normal">
+                        <button id="btn-lookup" onclick="lookupResultCode()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 whitespace-nowrap">
+                            查詢
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-grow overflow-y-auto no-scrollbar" id="lookup-result-container">
+                    <div class="flex flex-col items-center justify-center py-16 text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <p class="font-bold text-sm">輸入代碼開始查詢</p>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-100 bg-white">
+                    <button onclick="closeResultLookup()" class="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-2xl transition-all active:scale-95">
+                        關閉
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Image Zoom Modal -->
         <div id="image-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 hidden opacity-0 transition-opacity duration-300 p-4 backdrop-blur-sm" onclick="closeImageModal()">
             <button class="absolute top-4 right-4 text-white hover:text-blue-400 bg-black/30 hover:bg-black/50 p-2 rounded-full transition-colors focus:outline-none">
@@ -302,7 +366,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, doc, setDoc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         // Firebase Configuration
         // const firebaseConfig = {
@@ -338,7 +402,8 @@
             questionsA: [],
             questionsB: [],
             leaderboardFilter: 'all',
-            lastQuizBank: null
+            lastQuizBank: null,
+            lastResultCode: null
         };
 
         const views = {
@@ -676,8 +741,9 @@
         async function finishQuiz() {
             showView('loading');
             document.getElementById('quiz-progress-text').classList.add('hidden');
-            
+
             let correctCount = 0;
+            const answers = [];
             const container = document.getElementById('review-container');
             container.innerHTML = '';
 
@@ -685,6 +751,7 @@
                 const userAns = state.userAnswers[idx] || [];
                 const isCorrect = userAns.length === q.correctAnswers.length && userAns.every(v => q.correctAnswers.includes(v));
                 if (isCorrect) correctCount++;
+                answers.push({ title: q.title, isCorrect, userAnswers: userAns, correctAnswers: q.correctAnswers, explanation: q.explanation, images: q.images });
 
                 const card = document.createElement('div');
                 card.className = `bg-white rounded-2xl shadow-sm border-l-8 ${isCorrect ? 'border-green-500' : 'border-red-500'} p-6 transition-transform hover:scale-[1.01]`;
@@ -760,6 +827,8 @@
             const circumference = 502.65;
             circle.style.strokeDashoffset = circumference - (score / 100) * circumference;
 
+            state.lastResultCode = null;
+
             console.log("🏁 準備寫入資料庫... 登入狀態是否就緒：", state.isAuthReady);
             if (state.isAuthReady) {
                 try {
@@ -773,17 +842,74 @@
                         time: nowTime,
                         quizBank: state.currentQuizBank
                     });
-                    console.log("✅ 雲端寫入成功！");
+                    console.log("✅ 排行榜寫入成功！");
+
+                    const resultData = {
+                        nickname: state.nickname,
+                        score,
+                        correctCount,
+                        totalQuestions: state.questions.length,
+                        quizBank: state.currentQuizBank,
+                        time: nowTime,
+                        answers
+                    };
+                    state.lastResultCode = await generateUniqueCode(resultData);
+                    console.log("✅ 答題代碼生成成功：", state.lastResultCode);
                 } catch (e) {
                     console.error("❌ 寫入失敗，詳細原因：", e);
-                    alert("寫入失敗：" + e.message);
                 }
             } else {
                 console.warn("⚠️ 登入狀態未就緒，跳過寫入雲端。");
             }
 
             showView('result');
+            renderResultCode();
         }
+
+        // Result Code Logic
+        const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+        async function generateUniqueCode(data) {
+            for (let attempts = 0; attempts < 5; attempts++) {
+                const code = Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+                const docRef = doc(db, "results", code);
+                let collision = false;
+                await runTransaction(db, async (tx) => {
+                    const existing = await tx.get(docRef);
+                    if (existing.exists()) { collision = true; return; }
+                    tx.set(docRef, { ...data, code });
+                });
+                if (!collision) return code;
+            }
+            throw new Error("Failed to generate unique code after 5 attempts");
+        }
+
+        function renderResultCode() {
+            const display = document.getElementById('result-code-display');
+            const btn = document.getElementById('btn-copy-code');
+            if (state.lastResultCode) {
+                display.innerHTML = state.lastResultCode.split('').map(ch =>
+                    `<span class="inline-flex items-center justify-center w-10 h-10 bg-white border-2 border-slate-300 rounded-xl text-xl font-black text-slate-800 font-mono">${ch}</span>`
+                ).join('');
+                btn.classList.remove('hidden');
+            } else {
+                display.innerHTML = '<p class="text-sm text-red-500 font-bold py-2">代碼生成失敗，請截圖保存結果</p>';
+                btn.classList.add('hidden');
+            }
+        }
+
+        window.copyResultCode = async () => {
+            if (!state.lastResultCode) return;
+            const btn = document.getElementById('btn-copy-code');
+            try {
+                await navigator.clipboard.writeText(state.lastResultCode);
+                btn.textContent = '已複製！';
+                setTimeout(() => { btn.textContent = '複製代碼'; }, 1500);
+            } catch {
+                btn.textContent = '複製失敗';
+                setTimeout(() => { btn.textContent = '複製代碼'; }, 1500);
+            }
+        };
 
         // Leaderboard Logic
         function listenToLeaderboard() {
@@ -978,6 +1104,125 @@
             selectBank(state.currentQuizBank);
             window.scrollTo(0, 0);
         };
+
+        // --- 代碼查詢邏輯 ---
+        window.openResultLookup = () => {
+            const modal = document.getElementById('result-lookup-modal');
+            const card = document.getElementById('result-lookup-card');
+            document.getElementById('lookup-code-input').value = '';
+            document.getElementById('lookup-result-container').innerHTML = `
+                <div class="flex flex-col items-center justify-center py-16 text-slate-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <p class="font-bold text-sm">輸入代碼開始查詢</p>
+                </div>`;
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.replace('opacity-0', 'opacity-100');
+                card.classList.replace('scale-90', 'scale-100');
+            }, 10);
+        };
+
+        window.closeResultLookup = () => {
+            const modal = document.getElementById('result-lookup-modal');
+            const card = document.getElementById('result-lookup-card');
+            modal.classList.replace('opacity-100', 'opacity-0');
+            card.classList.replace('scale-100', 'scale-90');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        };
+
+        window.lookupResultCode = async () => {
+            const input = document.getElementById('lookup-code-input');
+            const code = input.value.toUpperCase().trim();
+            const resultContainer = document.getElementById('lookup-result-container');
+            const btn = document.getElementById('btn-lookup');
+
+            if (!code) {
+                resultContainer.innerHTML = '<p class="text-center text-sm text-red-500 font-bold py-8">請輸入代碼</p>';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '查詢中...';
+            resultContainer.innerHTML = '<div class="flex justify-center py-16"><div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-10 w-10"></div></div>';
+
+            try {
+                const docSnap = await getDoc(doc(db, "results", code));
+                if (docSnap.exists()) {
+                    renderLookupResult(docSnap.data());
+                } else {
+                    resultContainer.innerHTML = '<p class="text-center text-sm text-red-500 font-bold py-8">找不到此代碼，請確認代碼是否正確</p>';
+                }
+            } catch (e) {
+                resultContainer.innerHTML = '<p class="text-center text-sm text-red-500 font-bold py-8">查詢失敗，請檢查網路連線</p>';
+                console.error("查詢失敗：", e);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '查詢';
+            }
+        };
+
+        function renderLookupResult(data) {
+            const container = document.getElementById('lookup-result-container');
+            const bankName = BANK_NAMES[data.quizBank] || data.quizBank || '未知';
+            const dateStr = new Date(data.time).toLocaleDateString('zh-TW');
+
+            let html = `
+                <div class="p-5 border-b border-slate-100 bg-blue-50">
+                    <div class="flex justify-between items-start flex-wrap gap-2">
+                        <div>
+                            <p class="text-lg font-black text-slate-800">${data.nickname}</p>
+                            <p class="text-xs text-slate-500 font-bold mt-0.5">${bankName} ・ ${dateStr}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-black text-blue-600">${data.score}<span class="text-xs ml-1">分</span></div>
+                            <div class="text-xs text-slate-500 font-bold">答對 ${data.correctCount}/${data.totalQuestions}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-4 p-4">`;
+
+            (data.answers || []).forEach((a, idx) => {
+                const borderColor = a.isCorrect ? 'border-green-500' : 'border-red-500';
+                const badgeCls = a.isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                const badgeText = a.isCorrect ? 'Correct' : 'Incorrect';
+                const answerColor = a.isCorrect ? 'text-green-600' : 'text-red-500';
+
+                let imgSection = '';
+                if (a.images && a.images.length === 1) {
+                    imgSection = `<div class="mb-3 text-center"><img src="${a.images[0]}" class="h-24 w-auto object-contain mx-auto rounded-lg border border-slate-200" onerror="this.parentElement.style.display='none'"></div>`;
+                } else if (a.images && a.images.length > 1) {
+                    const tags = a.images.map(u => `<img src="${u}" class="h-24 w-auto flex-shrink-0 object-contain rounded-lg border border-slate-200" onerror="this.parentElement.remove()">`).join('');
+                    imgSection = `<div class="mb-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">${tags}</div>`;
+                }
+
+                html += `
+                    <div class="bg-white rounded-xl border-l-4 ${borderColor} p-4 shadow-sm">
+                        <div class="flex justify-between items-start gap-2 mb-3">
+                            <p class="text-sm font-bold text-slate-800 leading-snug">第 ${idx + 1} 題：${a.title}</p>
+                            <span class="px-2 py-0.5 rounded-full text-xs font-black uppercase shrink-0 ${badgeCls}">${badgeText}</span>
+                        </div>
+                        ${imgSection}
+                        <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+                            <div class="p-2.5 bg-slate-50 rounded-lg">
+                                <p class="text-slate-400 font-bold mb-1">你的回答</p>
+                                <p class="font-bold ${answerColor}">${(a.userAnswers || []).join('、') || '未作答'}</p>
+                            </div>
+                            <div class="p-2.5 bg-blue-50 rounded-lg">
+                                <p class="text-blue-400 font-bold mb-1">正確答案</p>
+                                <p class="font-bold text-blue-800">${(a.correctAnswers || []).join('、')}</p>
+                            </div>
+                        </div>
+                        <div class="pt-2 border-t border-slate-100">
+                            <p class="text-xs text-slate-500 leading-relaxed">${a.explanation}</p>
+                        </div>
+                    </div>`;
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
 
         window.startQuiz = startQuiz;
         window.initApp = initApp;
