@@ -5,3 +5,5 @@ firebase-env.js
 .cursor/
 .gemini/
 .github/
+.spectra/
+openspec/.vector-search.db*

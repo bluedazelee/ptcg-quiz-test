@@ -393,7 +393,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, doc, setDoc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, doc, setDoc, getDoc, runTransaction, increment, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         // Firebase Configuration
         // const firebaseConfig = {
@@ -430,7 +430,9 @@
             questionsB: [],
             leaderboardFilter: 'all',
             lastQuizBank: null,
-            lastResultCode: null
+            lastResultCode: null,
+            questionMap: {},
+            questionStats: {}
         };
 
         const views = {
@@ -480,31 +482,44 @@
 
             if (resultA.status === 'fulfilled') {
                 state.questionsA = parseData(resultA.value);
-                shuffleArray(state.questionsA);
             }
             if (resultB.status === 'fulfilled') {
                 state.questionsB = parseData(resultB.value);
-                shuffleArray(state.questionsB);
             }
 
-            if (state.questionsA.length === 0 && state.questionsB.length === 0) {
+            state.questionMap = {};
+            [...state.questionsA, ...state.questionsB].forEach(q => {
+                if (q.id) state.questionMap[q.id] = q;
+            });
+
+            try {
+                const statsSnap = await getDocs(collection(db, "question_stats"));
+                statsSnap.forEach(d => { state.questionStats[d.id] = d.data(); });
+            } catch (e) {
+                console.warn("無法載入題目統計資料：", e);
+            }
+
+            const activeA = state.questionsA.filter(q => q.isActive).length;
+            const activeB = state.questionsB.filter(q => q.isActive).length;
+
+            if (activeA === 0 && activeB === 0) {
                 showError("無法從 Google 試算表載入題庫，請檢查發布設定。");
                 return;
             }
 
             const btnA = document.getElementById('bank-btn-A');
             const btnB = document.getElementById('bank-btn-B');
-            if (state.questionsA.length === 0) {
+            if (activeA === 0) {
                 btnA.disabled = true;
                 btnA.classList.add('opacity-50', 'cursor-not-allowed');
             }
-            if (state.questionsB.length === 0) {
+            if (activeB === 0) {
                 btnB.disabled = true;
                 btnB.classList.add('opacity-50', 'cursor-not-allowed');
             }
 
-            document.getElementById('total-q-num').textContent = state.questionsA.length;
-            const defaultBank = state.questionsA.length > 0 ? 'A' : 'B';
+            document.getElementById('total-q-num').textContent = activeA;
+            const defaultBank = activeA > 0 ? 'A' : 'B';
             selectBank(defaultBank);
             showView('start');
         }
@@ -547,8 +562,8 @@
             const colMap = { options: [], images: [] };
 
             headers.forEach((h, idx) => {
-                if (h === '回答數') colMap.attempts = idx;
-                else if (h === '正確數') colMap.corrects = idx;
+                if (h === 'id') colMap.id = idx;
+                else if (h === '狀態' || h === 'status') colMap.status = idx;
                 else if (h.includes('題') || h === 'question') colMap.title = idx;
                 else if (h.includes('圖') || h === 'image') colMap.images.push(idx);
                 else if (h.includes('答案') || h === 'answer') colMap.answer = idx;
@@ -588,18 +603,17 @@
                     if (row[idx] && row[idx].trim()) imgs.push(row[idx].trim());
                 });
 
-                const rawAttempts = colMap.attempts !== undefined ? parseInt(row[colMap.attempts]) : NaN;
-                const rawCorrects = colMap.corrects !== undefined ? parseInt(row[colMap.corrects]) : NaN;
+                const rawStatus = colMap.status !== undefined ? (row[colMap.status] || '').trim() : '';
 
                 questions.push({
+                    id: colMap.id !== undefined ? (row[colMap.id] || '').trim() : '',
+                    isActive: rawStatus !== '無效',
                     title: row[colMap.title].trim(),
                     images: imgs,
                     options: opts,
                     correctAnswers,
                     isMultiple: correctAnswers.length > 1,
-                    explanation: row[colMap.explanation] ? row[colMap.explanation].trim() : "目前無詳解說明。",
-                    attemptCount: isNaN(rawAttempts) ? 0 : rawAttempts,
-                    correctCount: isNaN(rawCorrects) ? 0 : rawCorrects
+                    explanation: row[colMap.explanation] ? row[colMap.explanation].trim() : "目前無詳解說明。"
                 });
             }
 
@@ -631,16 +645,18 @@
                 btnA.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700');
             }
 
-            document.getElementById('count-A').textContent = state.questionsA.length;
-            document.getElementById('count-B').textContent = state.questionsB.length;
+            document.getElementById('count-A').textContent = state.questionsA.filter(q => q.isActive).length;
+            document.getElementById('count-B').textContent = state.questionsB.filter(q => q.isActive).length;
             document.getElementById('start-total-q').textContent =
-                bank === 'A' ? state.questionsA.length : state.questionsB.length;
+                bank === 'A' ? state.questionsA.filter(q => q.isActive).length : state.questionsB.filter(q => q.isActive).length;
         }
 
         function startQuiz() {
             const input = document.getElementById('nickname-input').value.trim();
             state.nickname = input || '挑戰者';
-            state.questions = state.currentQuizBank === 'A' ? state.questionsA : state.questionsB;
+            const bankQuestions = state.currentQuizBank === 'A' ? state.questionsA : state.questionsB;
+            state.questions = bankQuestions.filter(q => q.isActive);
+            shuffleArray(state.questions);
             state.currentIdx = 0;
             state.userAnswers = {};
             state.lastScore = null;
@@ -664,8 +680,9 @@
             badge.className = q.isMultiple ? 'px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full bg-purple-100 text-purple-700' : 'px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full bg-blue-100 text-blue-700';
 
             const accuracyBadge = document.getElementById('q-accuracy-badge');
-            if (q.attemptCount > 0) {
-                const pct = q.correctCount / q.attemptCount * 100;
+            const stats = state.questionStats[q.id];
+            if (stats && stats.attemptCount > 0) {
+                const pct = stats.correctCount / stats.attemptCount * 100;
                 const colorClass = pct >= 70
                     ? 'text-green-700 bg-green-100'
                     : pct > 40
@@ -810,7 +827,7 @@
                 const userAns = state.userAnswers[idx] || [];
                 const isCorrect = userAns.length === q.correctAnswers.length && userAns.every(v => q.correctAnswers.includes(v));
                 if (isCorrect) correctCount++;
-                answers.push({ title: q.title, isCorrect, userAnswers: userAns, correctAnswers: q.correctAnswers, explanation: q.explanation, images: q.images });
+                answers.push({ id: q.id, isCorrect, userAnswers: userAns });
 
                 const card = document.createElement('div');
                 card.className = `bg-white rounded-2xl shadow-sm border-l-8 ${isCorrect ? 'border-green-500' : 'border-red-500'} p-6 transition-transform hover:scale-[1.01]`;
@@ -902,6 +919,16 @@
                         quizBank: state.currentQuizBank
                     });
                     console.log("✅ 排行榜寫入成功！");
+
+                    const batch = writeBatch(db);
+                    answers.forEach(a => {
+                        batch.set(doc(db, "question_stats", a.id), {
+                            attemptCount: increment(1),
+                            correctCount: increment(a.isCorrect ? 1 : 0)
+                        }, { merge: true });
+                    });
+                    await batch.commit();
+                    console.log("✅ 題目統計寫入成功！");
 
                     const resultData = {
                         nickname: state.nickname,
@@ -1235,40 +1262,71 @@
                 <div class="flex flex-col gap-4 p-4">`;
 
             (data.answers || []).forEach((a, idx) => {
+                const q = state.questionMap[a.id];
                 const borderColor = a.isCorrect ? 'border-green-500' : 'border-red-500';
                 const badgeCls = a.isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
                 const badgeText = a.isCorrect ? 'Correct' : 'Incorrect';
                 const answerColor = a.isCorrect ? 'text-green-600' : 'text-red-500';
 
-                let imgSection = '';
-                if (a.images && a.images.length === 1) {
-                    imgSection = `<div class="mb-3 text-center"><img src="${a.images[0]}" class="h-24 w-auto object-contain mx-auto rounded-lg border border-slate-200" onerror="this.parentElement.style.display='none'"></div>`;
-                } else if (a.images && a.images.length > 1) {
-                    const tags = a.images.map(u => `<img src="${u}" class="h-24 w-auto flex-shrink-0 object-contain rounded-lg border border-slate-200" onerror="this.parentElement.remove()">`).join('');
-                    imgSection = `<div class="mb-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">${tags}</div>`;
-                }
+                if (!q) {
+                    html += `
+                        <div class="bg-white rounded-xl border-l-4 border-slate-300 p-4 shadow-sm">
+                            <div class="flex justify-between items-start gap-2 mb-3">
+                                <p class="text-sm font-bold text-slate-400 leading-snug">第 ${idx + 1} 題（ID: ${a.id}）</p>
+                                <div class="flex gap-1 flex-wrap justify-end">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-black uppercase shrink-0 ${badgeCls}">${badgeText}</span>
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-black shrink-0 bg-slate-100 text-slate-500">題目已移除</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div class="p-2.5 bg-slate-50 rounded-lg">
+                                    <p class="text-slate-400 font-bold mb-1">你的回答</p>
+                                    <p class="font-bold ${answerColor}">${(a.userAnswers || []).join('、') || '未作答'}</p>
+                                </div>
+                                <div class="p-2.5 bg-slate-100 rounded-lg">
+                                    <p class="text-slate-400 font-bold mb-1">正確答案</p>
+                                    <p class="font-bold text-slate-400">（已移除）</p>
+                                </div>
+                            </div>
+                        </div>`;
+                } else {
+                    const deprecatedBadge = !q.isActive
+                        ? `<span class="px-2 py-0.5 rounded-full text-xs font-black shrink-0 bg-amber-100 text-amber-700">已廢棄</span>`
+                        : '';
 
-                html += `
-                    <div class="bg-white rounded-xl border-l-4 ${borderColor} p-4 shadow-sm">
-                        <div class="flex justify-between items-start gap-2 mb-3">
-                            <p class="text-sm font-bold text-slate-800 leading-snug">第 ${idx + 1} 題：${a.title}</p>
-                            <span class="px-2 py-0.5 rounded-full text-xs font-black uppercase shrink-0 ${badgeCls}">${badgeText}</span>
-                        </div>
-                        ${imgSection}
-                        <div class="grid grid-cols-2 gap-2 text-xs mb-3">
-                            <div class="p-2.5 bg-slate-50 rounded-lg">
-                                <p class="text-slate-400 font-bold mb-1">你的回答</p>
-                                <p class="font-bold ${answerColor}">${(a.userAnswers || []).join('、') || '未作答'}</p>
+                    let imgSection = '';
+                    if (q.images && q.images.length === 1) {
+                        imgSection = `<div class="mb-3 text-center"><img src="${q.images[0]}" class="h-24 w-auto object-contain mx-auto rounded-lg border border-slate-200" onerror="this.parentElement.style.display='none'"></div>`;
+                    } else if (q.images && q.images.length > 1) {
+                        const tags = q.images.map(u => `<img src="${u}" class="h-24 w-auto flex-shrink-0 object-contain rounded-lg border border-slate-200" onerror="this.parentElement.remove()">`).join('');
+                        imgSection = `<div class="mb-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">${tags}</div>`;
+                    }
+
+                    html += `
+                        <div class="bg-white rounded-xl border-l-4 ${borderColor} p-4 shadow-sm">
+                            <div class="flex justify-between items-start gap-2 mb-3">
+                                <p class="text-sm font-bold text-slate-800 leading-snug">第 ${idx + 1} 題：${q.title}</p>
+                                <div class="flex gap-1 flex-wrap justify-end">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-black uppercase shrink-0 ${badgeCls}">${badgeText}</span>
+                                    ${deprecatedBadge}
+                                </div>
                             </div>
-                            <div class="p-2.5 bg-blue-50 rounded-lg">
-                                <p class="text-blue-400 font-bold mb-1">正確答案</p>
-                                <p class="font-bold text-blue-800">${(a.correctAnswers || []).join('、')}</p>
+                            ${imgSection}
+                            <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+                                <div class="p-2.5 bg-slate-50 rounded-lg">
+                                    <p class="text-slate-400 font-bold mb-1">你的回答</p>
+                                    <p class="font-bold ${answerColor}">${(a.userAnswers || []).join('、') || '未作答'}</p>
+                                </div>
+                                <div class="p-2.5 bg-blue-50 rounded-lg">
+                                    <p class="text-blue-400 font-bold mb-1">正確答案</p>
+                                    <p class="font-bold text-blue-800">${(q.correctAnswers || []).join('、')}</p>
+                                </div>
                             </div>
-                        </div>
-                        <div class="pt-2 border-t border-slate-100">
-                            <p class="text-xs text-slate-500 leading-relaxed">${a.explanation}</p>
-                        </div>
-                    </div>`;
+                            <div class="pt-2 border-t border-slate-100">
+                                <p class="text-xs text-slate-500 leading-relaxed">${q.explanation}</p>
+                            </div>
+                        </div>`;
+                }
             });
 
             html += '</div>';
