@@ -16,15 +16,26 @@ Open `index.html` directly in a browser. There is no dev server, no `npm install
 
 All application logic lives in the `<script type="module">` block at the bottom of `index.html`.
 
-**State machine via views:** The app has five named views (`loading`, `error`, `start`, `quiz`, `result`), each a `<div>` with an `id` prefixed `view-`. `showView(name)` hides all views and reveals the target one.
+**State machine via views:** The app has six named views (`loading`, `error`, `start`, `quiz`, `result`, `lookup`), each a `<div>` with an `id` prefixed `view-`. `showView(name)` hides all views and reveals the target one. Switching to `quiz` also adds `quiz-active` to `document.body`; switching away removes it.
 
-**Central `state` object** holds all runtime state: shuffled questions array, current question index, user answers map (keyed by question index), nickname, leaderboard data, pagination state, the last score/time for rank lookup, and `lastResultCode` (the 6-character result code generated after each quiz).
+**Quiz fullscreen layout:** When `body.quiz-active` is set, CSS makes the body `h-100dvh overflow-hidden` and strips `main`'s padding, so the quiz view fills the entire viewport. Inside `view-quiz`:
+- `#q-content-scroll` — `flex-1 overflow-y-auto`: the scrollable question/options area
+- `#q-content-inner` — animation target; receives `slide-in-right` or `slide-in-left` class on each question change
+- Bottom nav bar — `flex-none`: prev/next buttons, always visible without scrolling
+
+**Central `state` object** holds all runtime state:
+- `questions`, `currentIdx`, `userAnswers` — active quiz session
+- `questionsA`, `questionsB`, `currentQuizBank` — two quiz banks (A: 招式效果順序, B: 「消除」效果)
+- `nickname`, `lastScore`, `lastTime`, `lastQuizBank`, `lastResultCode` — result & leaderboard
+- `fullSortedData`, `currentPage`, `itemsPerPage`, `leaderboardFilter` — leaderboard pagination
+- `isAuthReady` — Firebase anonymous auth gate
 
 **Data flow:**
-1. On load, `initApp()` fetches questions from a public Google Sheets CSV URL (`CSV_URL`)
-2. `parseCSV()` → `parseData()` normalizes rows into question objects with `{ title, image, options, correctAnswers, isMultiple, explanation }`
-3. Answer column supports numeric indices (e.g., `"1,3"`) or literal text values; multiple answers (comma/、-separated) mark a question as `isMultiple`
-4. Questions are shuffled with Fisher-Yates before the start screen appears
+1. On load, `initApp()` fetches both quiz banks in parallel from `CSV_URL_A` and `CSV_URL_B` (public Google Sheets CSV)
+2. `parseCSV()` → `parseData()` normalizes rows into question objects: `{ title, images[], options[], correctAnswers[], isMultiple, explanation, attemptCount, correctCount }`
+3. `attemptCount` / `correctCount` come from optional spreadsheet columns and are used to compute a per-question accuracy badge
+4. Answer column supports numeric indices (e.g., `"1,3"`) or literal text values; multiple answers (comma/、-separated) mark a question as `isMultiple`
+5. Questions are shuffled with Fisher-Yates before the start screen appears
 
 **Firebase:**
 - Anonymous auth via `signInAnonymously` — required before writing scores
@@ -38,10 +49,14 @@ All application logic lives in the `<script type="module">` block at the bottom 
 - After `finishQuiz()` writes to `leaderboard`, it calls `generateUniqueCode(data)` which uses `runTransaction` to atomically check-and-write a 6-character code (charset: `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`) to the `results` Firestore collection, retrying up to 5 times on collision
 - The code and full answer details (`answers[]` array with per-question `title`, `isCorrect`, `userAnswers`, `correctAnswers`, `explanation`, `images`) are stored in `results/{code}`
 - `state.lastResultCode` holds the generated code for the current session; `renderResultCode()` displays it on the result view
-- The start view has a lookup button that opens a modal; `lookupResultCode()` calls `getDoc` to fetch and display any past attempt by code
+- The `lookup` view allows anyone to enter a 6-char code and see a past attempt's full answer breakdown; `lookupResultCode()` calls `getDoc` to fetch it
 - The `results` collection requires Firestore security rules: `write: if request.auth != null`, `read: if true`
 
 **Global function exposure:** Functions called from inline HTML `onclick` attributes must be assigned to `window.*` explicitly. Current exposed functions include: `startQuiz`, `nextQuestion`, `prevQuestion`, `openLeaderboard`, `closeLeaderboard`, `setLeaderboardFilter`, `prevPage`, `nextPage`, `openImageModal`, `closeImageModal`, `restartApp`, `selectBank`, `copyResultCode`, `openResultLookup`, `closeResultLookup`, `lookupResultCode`.
+
+**CSS animations** (defined in `<style>`):
+- `fadeIn` — used by start, result, lookup views
+- `slideInRight` / `slideInLeft` — triggered by `renderQuestion(direction)` on the `#q-content-inner` element
 
 ## Deployment
 
