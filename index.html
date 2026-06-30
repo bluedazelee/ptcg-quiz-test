@@ -44,6 +44,30 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .slide-in-right {
+            animation: slideInRight 0.22s ease-out;
+        }
+        .slide-in-left {
+            animation: slideInLeft 0.22s ease-out;
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(24px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-24px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        body.quiz-active {
+            height: 100dvh;
+            overflow: hidden;
+        }
+        body.quiz-active main {
+            padding: 0 !important;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
@@ -136,33 +160,40 @@
         </div>
 
         <!-- View: Quiz -->
-        <div id="view-quiz" class="hidden w-full max-w-3xl mt-4 fade-in">
-            <div class="w-full bg-slate-200 rounded-full h-3 mb-8 overflow-hidden shadow-inner">
-                <div id="progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-500 ease-out" style="width: 0%"></div>
+        <div id="view-quiz" class="hidden w-full flex-1 flex flex-col overflow-hidden">
+            <!-- 進度條 (flex-none) -->
+            <div class="flex-none px-4 pt-3 pb-2 bg-white border-b border-slate-100">
+                <div class="max-w-3xl mx-auto w-full bg-slate-200 rounded-full h-2 overflow-hidden shadow-inner">
+                    <div id="progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
             </div>
 
-            <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
-                <div class="p-8 sm:p-10">
-                    <div class="mb-6 flex justify-between items-center">
+            <!-- 題目內容區 (flex-1，可獨立捲動) -->
+            <div id="q-content-scroll" class="flex-1 overflow-y-auto">
+                <div id="q-content-inner" class="max-w-3xl mx-auto px-4 sm:px-8 py-5">
+                    <div class="mb-4 flex justify-between items-center">
                         <span id="q-type-badge" class="px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full bg-blue-100 text-blue-700">單選題</span>
                         <span id="q-accuracy-badge" class="hidden text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full"></span>
                     </div>
 
-                    <h3 id="q-title" class="text-2xl sm:text-3xl font-bold text-slate-900 mb-8 leading-tight">...</h3>
+                    <h3 id="q-title" class="text-xl sm:text-2xl font-bold text-slate-900 mb-5 leading-snug">...</h3>
 
                     <!-- 題目卡圖區域：單圖或多圖橫向捲動，由 renderQuestion() 動態注入 -->
-                    <div id="q-image-container" class="mb-8 hidden"></div>
+                    <div id="q-image-container" class="mb-6 hidden"></div>
 
-                    <div id="q-options" class="grid grid-cols-1 gap-4">
+                    <div id="q-options" class="grid grid-cols-1 gap-3">
                         <!-- Options injected here -->
                     </div>
                 </div>
+            </div>
 
-                <div class="bg-slate-50 px-8 py-6 flex justify-between items-center border-t border-slate-100">
-                    <button onclick="prevQuestion()" id="btn-prev" class="px-6 py-3 text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+            <!-- 導覽列 (flex-none，永遠固定於視窗底部) -->
+            <div class="flex-none bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
+                <div class="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center gap-3">
+                    <button onclick="prevQuestion()" id="btn-prev" class="px-5 py-2.5 text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed text-sm">
                         上一題
                     </button>
-                    <button onclick="nextQuestion()" id="btn-next" class="px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50">
+                    <button onclick="nextQuestion()" id="btn-next" class="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 text-sm">
                         下一題
                     </button>
                 </div>
@@ -479,6 +510,7 @@
         function showView(viewName) {
             Object.values(views).forEach(v => v.classList.add('hidden'));
             views[viewName].classList.remove('hidden');
+            document.body.classList.toggle('quiz-active', viewName === 'quiz');
         }
 
         function showError(msg) {
@@ -614,11 +646,13 @@
             document.getElementById('total-q-num').textContent = state.questions.length;
             document.getElementById('quiz-progress-text').classList.remove('hidden');
             showView('quiz');
-            renderQuestion();
+            renderQuestion('right');
         }
 
-        function renderQuestion() {
+        function renderQuestion(direction = 'right') {
             const q = state.questions[state.currentIdx];
+            const contentScrollEl = document.getElementById('q-content-scroll');
+            if (contentScrollEl) contentScrollEl.scrollTop = 0;
             document.getElementById('current-q-num').textContent = state.currentIdx + 1;
             document.getElementById('progress-bar').style.width = `${((state.currentIdx) / state.questions.length) * 100}%`;
             
@@ -684,11 +718,11 @@
                 
                 label.innerHTML = `
                     <input type="${q.isMultiple ? 'checkbox' : 'radio'}" name="quiz_opt" value="${opt.replace(/"/g, '&quot;')}" class="hidden option-input" ${isChecked ? 'checked' : ''}>
-                    <div class="option-content p-5 rounded-2xl border-2 border-slate-100 bg-white transition-all group-hover:border-blue-200 flex items-center gap-4">
+                    <div class="option-content p-4 rounded-2xl border-2 border-slate-100 bg-white transition-all group-hover:border-blue-200 flex items-center gap-3">
                         <div class="w-6 h-6 rounded-${q.isMultiple ? 'md' : 'full'} border-2 border-slate-200 flex-shrink-0 flex items-center justify-center transition-colors">
                             <div class="w-2.5 h-2.5 rounded-${q.isMultiple ? 'sm' : 'full'} bg-blue-600 opacity-0 transition-opacity"></div>
                         </div>
-                        <span class="text-lg font-medium text-slate-700">${opt}</span>
+                        <span class="text-base font-medium text-slate-700">${opt}</span>
                     </div>
                 `;
                 
@@ -721,9 +755,16 @@
 
             document.getElementById('btn-prev').disabled = state.currentIdx === 0;
             document.getElementById('btn-next').textContent = state.currentIdx === state.questions.length - 1 ? '提交成果' : '下一題';
-            document.getElementById('btn-next').className = state.currentIdx === state.questions.length - 1 
-                ? 'px-10 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95'
-                : 'px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95';
+            document.getElementById('btn-next').className = state.currentIdx === state.questions.length - 1
+                ? 'px-8 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 text-sm'
+                : 'px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 text-sm';
+
+            const contentInner = document.getElementById('q-content-inner');
+            if (contentInner) {
+                contentInner.classList.remove('slide-in-right', 'slide-in-left');
+                void contentInner.offsetWidth;
+                contentInner.classList.add(direction === 'right' ? 'slide-in-right' : 'slide-in-left');
+            }
         }
 
         function saveAnswer() {
@@ -734,7 +775,7 @@
         window.prevQuestion = () => {
             if (state.currentIdx > 0) {
                 state.currentIdx--;
-                renderQuestion();
+                renderQuestion('left');
             }
         };
 
@@ -742,7 +783,7 @@
             saveAnswer();
             if (state.currentIdx < state.questions.length - 1) {
                 state.currentIdx++;
-                renderQuestion();
+                renderQuestion('right');
             } else {
                 finishQuiz();
             }
