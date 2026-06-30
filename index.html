@@ -173,7 +173,7 @@
                 <div id="q-content-inner" class="max-w-3xl mx-auto px-4 sm:px-8 py-5">
                     <div class="mb-4 flex justify-between items-center">
                         <span id="q-type-badge" class="px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full bg-blue-100 text-blue-700">單選題</span>
-                        <span id="q-accuracy-badge" class="hidden text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full"></span>
+                        <span id="q-accuracy-badge" class="hidden"></span>
                     </div>
 
                     <h3 id="q-title" class="text-xl sm:text-2xl font-bold text-slate-900 mb-5 leading-snug">...</h3>
@@ -663,10 +663,16 @@
 
             const accuracyBadge = document.getElementById('q-accuracy-badge');
             if (q.attemptCount > 0) {
-                accuracyBadge.textContent = (q.correctCount / q.attemptCount * 100).toFixed(2) + '%';
-                accuracyBadge.classList.remove('hidden');
+                const pct = q.correctCount / q.attemptCount * 100;
+                const colorClass = pct >= 70
+                    ? 'text-green-700 bg-green-100'
+                    : pct > 40
+                        ? 'text-amber-700 bg-amber-100'
+                        : 'text-red-700 bg-red-100';
+                accuracyBadge.className = `text-xs font-bold px-3 py-1 rounded-full ${colorClass}`;
+                accuracyBadge.textContent = `👥 答對率 ${pct.toFixed(2)}%`;
             } else {
-                accuracyBadge.classList.add('hidden');
+                accuracyBadge.className = 'hidden';
             }
 
             const imgCont = document.getElementById('q-image-container');
